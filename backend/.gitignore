@@ -8,3 +8,5 @@ dist/
 .vscode/
 .idea/
 coverage/
+
+/src/generated/prisma
