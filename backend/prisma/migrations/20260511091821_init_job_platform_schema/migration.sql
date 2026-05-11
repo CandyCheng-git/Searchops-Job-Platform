@@ -10,6 +10,9 @@ CREATE TYPE "JobCategory" AS ENUM ('SOFTWARE_ENGINEERING', 'DATA_ANALYTICS', 'CL
 -- CreateEnum
 CREATE TYPE "EventType" AS ENUM ('JOB_VIEW', 'APPLY_CLICK', 'SEARCH_PERFORMED', 'FILTER_USED');
 
+-- CreateEnum
+CREATE TYPE "ExperimentVariant" AS ENUM ('A', 'B');
+
 -- CreateTable
 CREATE TABLE "Company" (
     "id" TEXT NOT NULL,
@@ -48,7 +51,7 @@ CREATE TABLE "Event" (
     "id" TEXT NOT NULL,
     "eventType" "EventType" NOT NULL,
     "jobId" TEXT,
-    "variant" TEXT,
+    "variant" "ExperimentVariant",
     "searchTerm" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -60,7 +63,7 @@ CREATE TABLE "ExperimentAssignment" (
     "id" TEXT NOT NULL,
     "anonymousUserId" TEXT NOT NULL,
     "experimentKey" TEXT NOT NULL,
-    "variant" TEXT NOT NULL,
+    "variant" "ExperimentVariant" NOT NULL,
     "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ExperimentAssignment_pkey" PRIMARY KEY ("id")

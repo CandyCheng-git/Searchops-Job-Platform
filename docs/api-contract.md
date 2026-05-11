@@ -74,11 +74,17 @@ Product API endpoints under `/api` should return a consistent JSON envelope:
 
 ### Infrastructure health response
 
-The existing Phase 1 health endpoint may remain intentionally simple:
+The existing Phase 1 health endpoint is infrastructure-level and does not use the `/api` prefix:
 
 ```json
 {
-  "status": "ok"
+  "data": {
+    "status": "ok"
+  },
+  "meta": {
+    "timestamp": "2026-05-11T06:30:00.000Z",
+    "requestId": "req_abc123"
+  }
 }
 ```
 
@@ -116,7 +122,13 @@ This endpoint is infrastructure-level and does not use the `/api` prefix.
 
 ```json
 {
-  "status": "ok"
+  "data": {
+    "status": "ok"
+  },
+  "meta": {
+    "timestamp": "2026-05-11T06:30:00.000Z",
+    "requestId": "req_abc123"
+  }
 }
 ```
 
@@ -360,7 +372,7 @@ This endpoint supports later analytics and A/B testing.
 |---|---|---:|---:|---|
 | `eventType` | enum | Yes | No | `JOB_VIEW`, `APPLY_CLICK`, `SEARCH_PERFORMED`, `FILTER_USED` |
 | `jobId` | string | No | Yes | Required for job-specific events; nullable for search/filter events |
-| `variant` | string | No | Yes | Later used for CTA experiment variant, e.g. `A` or `B` |
+| `variant` | enum | No | Yes | Uses `ExperimentVariant`: `A` or `B` |
 | `searchTerm` | string | No | Yes | Used for search analytics |
 
 ### Event type guidance

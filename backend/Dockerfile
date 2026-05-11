@@ -2,6 +2,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+ENV DATABASE_URL=postgresql://searchops:searchops@postgres:5432/searchops_dev
+
 COPY package.json package-lock.json ./
 
 RUN npm ci
