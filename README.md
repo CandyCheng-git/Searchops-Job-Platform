@@ -1,316 +1,168 @@
-# SearchOps — SEO-Aware Job Listing Platform
+# SearchOps Job Platform
 
-A cloud-native TypeScript project that demonstrates how public job pages can be built for search visibility, conversion tracking, testability, and platform reliability.
+A cloud-native TypeScript project demonstrating how public job pages can be built for search visibility, conversion tracking, testability, and platform reliability.
 
-## Why this project exists
+## Project Status
 
-This project explores how a job-listing platform can:
-- serve crawlable, SEO-ready job detail pages
-- expose scalable REST APIs for search and filtering
-- track meaningful user actions such as job views and apply clicks
-- support automated testing, observability, and incident response
-- use lightweight experimentation to inform product decisions
+- Phase 1 complete: backend bootstrap with Docker local environment and `GET /health`.
+- Phase 2 in progress/complete in this branch: Prisma schema, persisted migrations, seed data, and direct database integration tests.
 
-## Planned capabilities
+Phase 2 does not include job APIs, frontend work, authentication, analytics endpoints, or A/B testing logic.
 
-- SEO-ready job detail pages with `JobPosting` structured data
-- Search and filtering API
-- Conversion event tracking
-- A/B testing for apply-button wording
-- Automated unit, integration, and end-to-end tests
-- Health checks, structured logs, and latency monitoring
-- Incident-response documentation for simulated production degradation
+## Tech Stack
 
-## Tech stack
-
-- Frontend: React, TypeScript
-- Backend: Node.js, TypeScript
+- Backend: Node.js, Express, TypeScript
 - Database: PostgreSQL, Prisma
-- Testing: Vitest, Supertest, Playwright
-- DevOps: Docker, GitHub Actions
-- Observability: structured logging, metrics, health checks
+- Testing: Vitest, Supertest
+- Local workflow: Docker Compose only
 
-## Project status
+## Local Development
 
-**Phase 1 complete:** Backend bootstrap with Docker local environment.
+Docker is the supported local workflow. Do not run npm or Prisma commands on the host machine for normal project setup.
 
-**Next:** Phase 2 (Database + Prisma models).
-
-## Engineering focus
-
-This is intentionally not a feature-heavy CRUD application.  
-The focus is on demonstrating:
-1. maintainable TypeScript backend design
-2. SEO-aware product engineering
-3. test-driven delivery
-4. observability and incident thinking
-5. product metrics and experimentation
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- **Docker & Docker Compose** (for containerized development)
-- **Node.js 18+** (for local development)
-- **npm 9+**
-
-### Local Development Setup
-
-#### Using Docker Compose (Recommended)
+Start PostgreSQL:
 
 ```bash
-# Start backend and PostgreSQL
-docker compose up --build
-
-# In another terminal, run tests
-cd backend
-npm install
-npm test
-
-# Check health endpoint
-curl http://localhost:5000/health
+docker compose up -d postgres
 ```
 
-Expected output:
-```json
-{
-  "data": {
-    "status": "ok"
-  },
-  "meta": {
-    "timestamp": "2026-05-10T14:30:00Z",
-    "requestId": "req_abc123"
-  }
-}
-```
-
-#### Local Setup (Without Docker)
+Build the backend image:
 
 ```bash
-# Install dependencies
-cd backend
-npm install
-
-# Copy environment file
-cp .env.example .env
-
-# Run tests
-npm test
-
-# Start development server
-npm run dev
+docker compose build backend
 ```
 
-Server runs on `http://localhost:5000`
-
-### Running Tests
+Format and generate Prisma inside Docker:
 
 ```bash
-cd backend
-
-# Run all tests once
-npm test
-
-# Watch mode (re-run on file changes)
-npm run test:watch
-
-# With coverage
-npm run test:coverage
+docker compose run --rm backend sh -lc "npx prisma format"
+docker compose run --rm backend sh -lc "npx prisma generate"
 ```
 
-### Linting & Formatting
+Apply existing persisted migrations:
 
 ```bash
-cd backend
-
-# Check code style
-npm run lint
-
-# Fix issues automatically
-npm run lint:fix
-
-# Format code
-npm run format
+docker compose run --rm backend sh -lc "npx prisma migrate deploy"
 ```
 
-### Building for Production
+Seed the development database:
 
 ```bash
-cd backend
-
-# Build TypeScript
-npm run build
-
-# Start production server
-npm start
+docker compose run --rm backend sh -lc "npx prisma db seed"
 ```
 
-### Docker Commands
+Run tests and build:
 
 ```bash
-# Start services
-docker compose up
-
-# Rebuild and start
-docker compose up --build
-
-# View logs
-docker compose logs -f backend
-docker compose logs -f postgres
-
-# Stop services
-docker compose down
-
-# Stop and remove volumes (clean state)
-docker compose down -v
+docker compose run --rm backend sh -lc "npm test"
+docker compose run --rm backend sh -lc "npm run build"
 ```
 
----
+Start the API:
 
-## Project Structure
-
-```
-.
-├── backend/                    # Node.js + Express API
-│   ├── src/
-│   │   ├── app.ts              # Express app configuration
-│   │   ├── server.ts           # Server startup
-│   │   └── routes/
-│   │       └── health.ts       # Health check route
-│   ├── Dockerfile              # Container image
-│   ├── package.json            # Dependencies
-│   ├── tsconfig.json           # TypeScript config
-│   ├── .eslintrc.json          # Linting rules
-│   ├── .prettierrc             # Code formatting
-│   └── vitest.config.ts        # Test configuration
-├── docker-compose.yml          # Local development environment
-├── docs/                       # Documentation
-│   ├── api-contract.md         # API specifications
-│   ├── architecture.md         # System design
-│   ├── data-model.md           # Database schema
-│   ├── experiment-plan.md      # A/B testing framework
-│   ├── incident-response.md    # Production runbook
-│   ├── observability.md        # Monitoring & logging
-│   ├── product-brief.md        # Business case
-│   ├── seo-strategy.md         # SEO technical specs
-│   └── testing-strategy.md     # Test approach
-├── README.md                   # This file
-└── LICENSE
+```bash
+docker compose up backend
 ```
 
----
+The API runs on `http://localhost:5000`.
 
-## API Endpoints (Phase 1)
+## Migration Persistence
 
-### Health Check
+Migrations are committed under `backend/prisma/migrations`.
 
+If a fresh repo state has no migration yet, create the first migration through Docker with a bind mount so generated files are persisted to the host:
+
+```bash
+docker compose run --rm -v "$PWD/backend/prisma:/app/prisma" backend sh -lc "npx prisma migrate dev --name init_job_platform_schema --skip-seed"
 ```
+
+Do not create migrations only inside a disposable container.
+
+## Database Seed Data
+
+The Phase 2 seed script is `backend/prisma/seed.ts`. It resets dependent records in a safe order and inserts realistic Australian demo data:
+
+- 6 companies
+- 22 jobs
+- locations across Melbourne, Sydney, Brisbane, and Remote Australia
+- onsite, hybrid, and remote roles
+- software engineering, data analytics, cloud/devops, cybersecurity, product, and design categories
+- full-time, contract, internship, and part-time employment types
+- realistic AUD salary ranges
+
+## Tests
+
+Run the test suite through Docker:
+
+```bash
+docker compose run --rm backend sh -lc "npm test"
+```
+
+The current test suite includes:
+
+- existing `GET /health` tests
+- Phase 2 Prisma integration tests that use the Docker PostgreSQL database directly
+
+Phase 2 does not introduce a separate test database. These are local development integration tests against the Docker Compose PostgreSQL service.
+
+## API Endpoints
+
+Current infrastructure endpoint:
+
+```http
 GET /health
 ```
 
-Returns:
+Current response shape:
+
 ```json
 {
   "data": {
     "status": "ok"
   },
   "meta": {
-    "timestamp": "2026-05-10T14:30:00Z",
+    "timestamp": "2026-05-11T00:00:00.000Z",
     "requestId": "req_abc123"
   }
 }
 ```
 
-**Future endpoints:** See [api-contract.md](docs/api-contract.md)
+Future product APIs should be mounted under `/api`.
 
----
+Planned examples:
 
-## Development Workflow
+- `GET /api/jobs`
+- `GET /api/jobs/:slug`
+- `POST /api/events`
+- `GET /api/analytics/summary`
 
-1. **Create feature branch** → `git checkout -b feature/my-feature`
-2. **Make changes** in `backend/src/`
-3. **Write tests** (Vitest + Supertest)
-4. **Run tests locally** → `npm test`
-5. **Lint & format** → `npm run lint:fix && npm run format`
-6. **Commit & push** → `git push origin feature/my-feature`
-7. **Create PR** → Link to issue, describe changes
-8. **Tests pass in CI/CD** → Merge to main
+Do not implement those endpoints during Phase 2.
 
----
-
-## Architecture & Design
-
-See full documentation:
-
-- **[Product Brief](docs/product-brief.md)** — Vision, success metrics, out-of-scope items
-- **[Architecture](docs/architecture.md)** — System design, tech stack, scalability
-- **[API Contract](docs/api-contract.md)** — Endpoint specifications
-- **[Data Model](docs/data-model.md)** — Database schema, indexes, queries
-- **[Testing Strategy](docs/testing-strategy.md)** — Test pyramid, coverage goals
-- **[SEO Strategy](docs/seo-strategy.md)** — Crawlability, structured data, Core Web Vitals
-- **[Observability](docs/observability.md)** — Logging, metrics, alerting
-- **[Incident Response](docs/incident-response.md)** — Runbook, debugging procedures
-- **[Experimentation](docs/experiment-plan.md)** — A/B testing framework
-
----
-
-## Troubleshooting
-
-### `docker compose up` fails
+## Useful Docker Commands
 
 ```bash
-# Clear containers and rebuild
+docker compose up -d postgres
+docker compose up backend
+docker compose logs -f backend
+docker compose logs -f postgres
+docker compose down
 docker compose down -v
-docker compose up --build
-
-# Check Docker daemon is running
-docker --version
 ```
 
-### Port 5000 already in use
+`docker compose down -v` removes the PostgreSQL volume and clears local database state.
 
-```bash
-# Find and kill process on port 5000
-lsof -i :5000  # macOS/Linux
-netstat -ano | findstr :5000  # Windows
-```
+## Documentation
 
-### Tests fail locally
-
-```bash
-# Ensure dependencies are installed
-npm install
-
-# Clear cache
-rm -rf node_modules package-lock.json
-npm install
-npm test
-```
-
-### Database connection errors
-
-```bash
-# Verify postgres is running
-docker compose logs postgres
-
-# Check connection string in .env
-cat backend/.env
-```
-
----
-
-## Contributing
-
-Please read [docs/product-brief.md](docs/product-brief.md) to understand project scope and out-of-scope items.
-
-**Current phase:** Backend bootstrap (Phase 1)
-
-**Next phase:** Database + Prisma models (Phase 2)
-
----
+- [Product Brief](docs/product-brief.md)
+- [Architecture](docs/architecture.md)
+- [API Contract](docs/api-contract.md)
+- [Data Model](docs/data-model.md)
+- [Testing Strategy](docs/testing-strategy.md)
+- [SEO Strategy](docs/seo-strategy.md)
+- [Observability](docs/observability.md)
+- [Incident Response](docs/incident-response.md)
+- [Experimentation](docs/experiment-plan.md)
 
 ## License
 
-See [LICENSE](LICENSE) file.
+See [LICENSE](LICENSE).

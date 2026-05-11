@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String   @unique
+  websiteUrl String?
+  jobs       Job[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Job {
+  id             String         @id @default(cuid())
+  title          String
+  slug           String         @unique
+  description    String
+  location       String
+  category       JobCategory
+  workMode       WorkMode
+  employmentType EmploymentType
+  salaryMin      Int?
+  salaryMax      Int?
+  datePosted     DateTime       @default(now())
+  validThrough   DateTime?
+  companyId      String
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  events         Event[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([companyId])
+  @@index([location])
+  @@index([category])
+  @@index([workMode])
+  @@index([employmentType])
+  @@index([datePosted])
+}
+
+model Event {
+  id         String             @id @default(cuid())
+  eventType  EventType
+  jobId      String?
+  job        Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  variant    ExperimentVariant?
+  searchTerm String?
+  createdAt  DateTime           @default(now())
+
+  @@index([eventType])
+  @@index([jobId])
+  @@index([searchTerm])
+  @@index([createdAt])
+}
+
+model ExperimentAssignment {
+  id              String            @id @default(cuid())
+  anonymousUserId String
+  experimentKey   String
+  variant         ExperimentVariant
+  assignedAt      DateTime          @default(now())
+
+  @@unique([anonymousUserId, experimentKey])
+  @@index([experimentKey])
+  @@index([variant])
+}
+
+enum WorkMode {
+  ONSITE
+  HYBRID
+  REMOTE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  CASUAL
+  INTERNSHIP
+}
+
+enum JobCategory {
+  SOFTWARE_ENGINEERING
+  DATA_ANALYTICS
+  CLOUD_DEVOPS
+  PRODUCT
+  DESIGN
+  CYBERSECURITY
+}
+
+enum EventType {
+  JOB_VIEW
+  APPLY_CLICK
+  SEARCH_PERFORMED
+  FILTER_USED
+}
+
+enum ExperimentVariant {
+  A
+  B
+}

@@ -112,7 +112,7 @@ describe('SearchService', () => {
 | GET /api/jobs | 8 | Search, filter, pagination, 400+ latency |
 | GET /api/jobs/:id | 4 | Found, not found, invalid ID |
 | POST /api/events | 6 | Valid events, experiment assignment, invalid types |
-| GET /api/health | 3 | Healthy, database down, degraded |
+| GET /health | 3 | Healthy, database down, degraded |
 
 **Example:**
 ```typescript
@@ -161,6 +161,31 @@ describe('GET /api/jobs', () => {
 | Missing index (incident) | 1 | Simulate >800ms latency, trigger alert |
 | Pagination accuracy | 1 | Verify offset calculations across pages |
 | Event recording | 1 | Verify events persisted and queryable |
+
+### Current Phase 2 Database Integration Tests
+
+Phase 2 adds direct Prisma integration tests in `backend/src/db/prisma.integration.test.ts`.
+
+These tests verify:
+
+- seeded companies exist
+- seeded jobs exist
+- one company can have many jobs
+- job slugs are unique
+- nullable `Event.jobId` works for search events
+- `ExperimentAssignment` enforces one variant per anonymous user per experiment key
+
+These are local development integration tests against the Docker Compose PostgreSQL database. Phase 2 does not introduce a separate test database.
+
+Run them through the Docker-only workflow:
+
+```bash
+docker compose up -d postgres
+docker compose build backend
+docker compose run --rm backend sh -lc "npx prisma migrate deploy"
+docker compose run --rm backend sh -lc "npx prisma db seed"
+docker compose run --rm backend sh -lc "npm test"
+```
 
 ---
 
@@ -252,12 +277,13 @@ beforeEach(async () => {
 
 ### Database Reset
 
-Run migrations fresh for each test suite:
+For Phase 2 local development, run migrations and seed data through Docker before the test suite:
 
 ```bash
-npm run test:setup  # Reset DB, run migrations, seed fixtures
-npm run test        # Run all tests
-npm run test:watch  # Watch mode for development
+docker compose up -d postgres
+docker compose run --rm backend sh -lc "npx prisma migrate deploy"
+docker compose run --rm backend sh -lc "npx prisma db seed"
+docker compose run --rm backend sh -lc "npm test"
 ```
 
 ---
