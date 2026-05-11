@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: searchops-postgres
+    environment:
+      POSTGRES_DB: searchops_dev
+      POSTGRES_USER: searchops
+      POSTGRES_PASSWORD: searchops
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U searchops -d searchops_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: searchops-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://searchops:searchops@postgres:5432/searchops_dev
+    ports:
+      - "5000:5000"
+
+volumes:
+  postgres_data:
