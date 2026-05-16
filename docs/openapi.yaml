@@ -1,0 +1,538 @@
+openapi: 3.0.3
+info:
+  title: SearchOps Phase 3 Job API
+  version: 1.0.0
+  description: Public job listing, search/filtering, pagination, and job detail endpoints implemented in Phase 3.
+servers:
+  - url: http://localhost:5000
+    description: Local Docker Compose API
+tags:
+  - name: Jobs
+    description: Public job discovery endpoints
+paths:
+  /api/jobs:
+    get:
+      tags:
+        - Jobs
+      summary: List, search, filter, sort, and paginate jobs
+      description: >
+        Returns a paginated list of jobs. Keyword search uses case-insensitive contains matching
+        across job title, description, location, company name, and company slug. Salary filters use
+        job-seeker range matching: salaryMin matches jobs whose salaryMax is greater than or equal
+        to salaryMin, and salaryMax matches jobs whose salaryMin is less than or equal to salaryMax.
+        Jobs with nullable salary values are included only when no salary filter is applied.
+      operationId: listJobs
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: Keyword search. Trimmed before use; empty values behave the same as no keyword search.
+          schema:
+            type: string
+          example: backend
+        - name: keyword
+          in: query
+          required: false
+          description: Optional alias for q. If both q and keyword are provided, q is used.
+          schema:
+            type: string
+          example: backend
+        - name: location
+          in: query
+          required: false
+          description: Case-insensitive partial location filter.
+          schema:
+            type: string
+          example: Melbourne
+        - name: workMode
+          in: query
+          required: false
+          description: Work mode filter. Must match the Prisma WorkMode enum exactly.
+          schema:
+            $ref: '#/components/schemas/WorkMode'
+          example: HYBRID
+        - name: category
+          in: query
+          required: false
+          description: Job category filter. Must match the Prisma JobCategory enum exactly.
+          schema:
+            $ref: '#/components/schemas/JobCategory'
+          example: SOFTWARE_ENGINEERING
+        - name: employmentType
+          in: query
+          required: false
+          description: Employment type filter. Must match the Prisma EmploymentType enum exactly.
+          schema:
+            $ref: '#/components/schemas/EmploymentType'
+          example: FULL_TIME
+        - name: company
+          in: query
+          required: false
+          description: Case-insensitive partial filter across company name and company slug.
+          schema:
+            type: string
+          example: seek
+        - name: salaryMin
+          in: query
+          required: false
+          description: Positive integer lower salary bound. Returns jobs whose salaryMax is greater than or equal to this value.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 120000
+        - name: salaryMax
+          in: query
+          required: false
+          description: Positive integer upper salary bound. Returns jobs whose salaryMin is less than or equal to this value.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+          example: 160000
+        - name: page
+          in: query
+          required: false
+          description: Positive integer page number.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          required: false
+          description: Positive integer page size. Maximum is 100.
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+        - name: sort
+          in: query
+          required: false
+          description: Sort order. Defaults to recent.
+          schema:
+            type: string
+            enum:
+              - recent
+              - salary_desc
+              - salary_asc
+            default: recent
+          example: recent
+      responses:
+        '200':
+          description: Jobs returned successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobsListResponse'
+              examples:
+                default:
+                  summary: Paginated job list
+                  value:
+                    data:
+                      jobs:
+                        - id: clxjob001
+                          title: Backend Software Engineer
+                          slug: backend-software-engineer-melbourne-seek
+                          company:
+                            id: clxcompany001
+                            name: SEEK
+                            slug: seek
+                            websiteUrl: https://www.seek.com.au
+                          location: Melbourne, VIC
+                          category: SOFTWARE_ENGINEERING
+                          workMode: HYBRID
+                          employmentType: FULL_TIME
+                          salaryMin: 110000
+                          salaryMax: 145000
+                          datePosted: '2026-05-01T00:00:00.000Z'
+                          validThrough: '2026-06-14T00:00:00.000Z'
+                      pagination:
+                        page: 1
+                        limit: 20
+                        total: 22
+                        totalPages: 2
+                        hasNextPage: true
+                        hasPreviousPage: false
+                    meta:
+                      timestamp: '2026-05-11T06:30:00.000Z'
+                      requestId: req_abc123
+        '400':
+          description: Invalid query parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidEnum:
+                  summary: Invalid enum value
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid query parameter
+                      details:
+                        - field: workMode
+                          message: 'workMode must be one of: ONSITE, HYBRID, REMOTE'
+                    meta:
+                      timestamp: '2026-05-11T06:30:00.000Z'
+                      requestId: req_abc123
+                invalidLimit:
+                  summary: Limit exceeds maximum
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid query parameter
+                      details:
+                        - field: limit
+                          message: limit must be less than or equal to 100
+                    meta:
+                      timestamp: '2026-05-11T06:30:00.000Z'
+                      requestId: req_abc123
+                invalidSalaryRange:
+                  summary: salaryMax is lower than salaryMin
+                  value:
+                    error:
+                      code: VALIDATION_ERROR
+                      message: Invalid query parameter
+                      details:
+                        - field: salaryMax
+                          message: salaryMax must be greater than or equal to salaryMin
+                    meta:
+                      timestamp: '2026-05-11T06:30:00.000Z'
+                      requestId: req_abc123
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internalError:
+                  $ref: '#/components/examples/InternalError'
+  /api/jobs/{slug}:
+    get:
+      tags:
+        - Jobs
+      summary: Get a job by SEO-friendly slug
+      description: Fetches one public job listing by slug.
+      operationId: getJobBySlug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: SEO-friendly job slug.
+          schema:
+            type: string
+            minLength: 1
+          example: backend-software-engineer-melbourne-seek
+      responses:
+        '200':
+          description: Job found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDetailResponse'
+              examples:
+                default:
+                  summary: Job detail
+                  value:
+                    data:
+                      id: clxjob001
+                      title: Backend Software Engineer
+                      slug: backend-software-engineer-melbourne-seek
+                      description: Build scalable backend services for job search, structured data, and marketplace reliability.
+                      location: Melbourne, VIC
+                      category: SOFTWARE_ENGINEERING
+                      workMode: HYBRID
+                      employmentType: FULL_TIME
+                      salaryMin: 110000
+                      salaryMax: 145000
+                      datePosted: '2026-05-01T00:00:00.000Z'
+                      validThrough: '2026-06-14T00:00:00.000Z'
+                      company:
+                        id: clxcompany001
+                        name: SEEK
+                        slug: seek
+                        websiteUrl: https://www.seek.com.au
+                    meta:
+                      timestamp: '2026-05-11T06:30:00.000Z'
+                      requestId: req_abc123
+        '404':
+          description: Job slug not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                notFound:
+                  summary: Unknown job slug
+                  value:
+                    error:
+                      code: NOT_FOUND
+                      message: Job not found
+                      details: []
+                    meta:
+                      timestamp: '2026-05-11T06:30:00.000Z'
+                      requestId: req_abc123
+        '500':
+          description: Server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                internalError:
+                  $ref: '#/components/examples/InternalError'
+components:
+  examples:
+    InternalError:
+      summary: Internal error
+      value:
+        error:
+          code: INTERNAL_ERROR
+          message: Internal server error
+          details: []
+        meta:
+          timestamp: '2026-05-11T06:30:00.000Z'
+          requestId: req_abc123
+  schemas:
+    ApiMeta:
+      type: object
+      required:
+        - timestamp
+        - requestId
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-05-11T06:30:00.000Z'
+        requestId:
+          type: string
+          example: req_abc123
+    ErrorCode:
+      type: string
+      enum:
+        - VALIDATION_ERROR
+        - NOT_FOUND
+        - INTERNAL_ERROR
+    ErrorDetail:
+      type: object
+      required:
+        - message
+      properties:
+        field:
+          type: string
+          example: limit
+        message:
+          type: string
+          example: limit must be less than or equal to 100
+    ErrorBody:
+      type: object
+      required:
+        - code
+        - message
+        - details
+      properties:
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+          example: Invalid query parameter
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - meta
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    WorkMode:
+      type: string
+      enum:
+        - ONSITE
+        - HYBRID
+        - REMOTE
+    EmploymentType:
+      type: string
+      enum:
+        - FULL_TIME
+        - PART_TIME
+        - CONTRACT
+        - CASUAL
+        - INTERNSHIP
+    JobCategory:
+      type: string
+      enum:
+        - SOFTWARE_ENGINEERING
+        - DATA_ANALYTICS
+        - CLOUD_DEVOPS
+        - PRODUCT
+        - DESIGN
+        - CYBERSECURITY
+    Company:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - websiteUrl
+      properties:
+        id:
+          type: string
+          example: clxcompany001
+        name:
+          type: string
+          example: SEEK
+        slug:
+          type: string
+          example: seek
+        websiteUrl:
+          type: string
+          nullable: true
+          format: uri
+          example: https://www.seek.com.au
+    JobListItem:
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - company
+        - location
+        - category
+        - workMode
+        - employmentType
+        - salaryMin
+        - salaryMax
+        - datePosted
+        - validThrough
+      properties:
+        id:
+          type: string
+          example: clxjob001
+        title:
+          type: string
+          example: Backend Software Engineer
+        slug:
+          type: string
+          example: backend-software-engineer-melbourne-seek
+        company:
+          $ref: '#/components/schemas/Company'
+        location:
+          type: string
+          example: Melbourne, VIC
+        category:
+          $ref: '#/components/schemas/JobCategory'
+        workMode:
+          $ref: '#/components/schemas/WorkMode'
+        employmentType:
+          $ref: '#/components/schemas/EmploymentType'
+        salaryMin:
+          type: integer
+          nullable: true
+          format: int32
+          example: 110000
+        salaryMax:
+          type: integer
+          nullable: true
+          format: int32
+          example: 145000
+        datePosted:
+          type: string
+          format: date-time
+          example: '2026-05-01T00:00:00.000Z'
+        validThrough:
+          type: string
+          nullable: true
+          format: date-time
+          example: '2026-06-14T00:00:00.000Z'
+    JobDetail:
+      allOf:
+        - $ref: '#/components/schemas/JobListItem'
+        - type: object
+          required:
+            - description
+          properties:
+            description:
+              type: string
+              example: Build scalable backend services for job search, structured data, and marketplace reliability.
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+        - hasNextPage
+        - hasPreviousPage
+      properties:
+        page:
+          type: integer
+          format: int32
+          minimum: 1
+          example: 1
+        limit:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          example: 20
+        total:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 22
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+          example: 2
+        hasNextPage:
+          type: boolean
+          example: true
+        hasPreviousPage:
+          type: boolean
+          example: false
+    JobsListData:
+      type: object
+      required:
+        - jobs
+        - pagination
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobListItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+    JobsListResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/JobsListData'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    JobDetailResponse:
+      type: object
+      required:
+        - data
+        - meta
+      properties:
+        data:
+          $ref: '#/components/schemas/JobDetail'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
