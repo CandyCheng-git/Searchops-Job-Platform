@@ -1,16 +1,11 @@
 import { Router, Request, Response } from 'express';
+import { sendSuccess } from '../utils/apiResponse.js';
 
 const router = Router();
 
 router.get('/', (req: Request, res: Response) => {
-  res.json({
-    data: {
-      status: 'ok',
-    },
-    meta: {
-      timestamp: new Date().toISOString(),
-      requestId: (req as any).requestId,
-    },
+  sendSuccess(req, res, {
+    status: 'ok',
   });
 });
 
