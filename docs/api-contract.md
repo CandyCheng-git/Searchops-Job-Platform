@@ -32,8 +32,8 @@ Future product endpoints should be mounted under `/api`.
 | Endpoint | Status | Purpose |
 |---|---|---|
 | `GET /health` | Implemented in Phase 1 | Verify the backend service is running |
-| `GET /api/jobs` | Planned for Phase 3 | List, search, filter, sort, and paginate jobs |
-| `GET /api/jobs/:slug` | Planned for Phase 3 | Fetch one job by SEO-friendly slug |
+| `GET /api/jobs` | Implemented in Phase 3 | List, search, filter, sort, and paginate jobs |
+| `GET /api/jobs/:slug` | Implemented in Phase 3 | Fetch one job by SEO-friendly slug |
 | `POST /api/events` | Planned for Phase 5 | Track job views, apply clicks, search, and filter events |
 | `GET /api/analytics/summary` | Planned for Phase 5 | Return basic product analytics and conversion metrics |
 | `GET /metrics` | Planned for Phase 6 | Return operational metrics for observability |
@@ -168,7 +168,7 @@ GET /api/jobs
 
 ### Status
 
-Planned for Phase 3. Do not implement during Phase 2.
+Implemented in Phase 3.
 
 ### Purpose
 
@@ -180,7 +180,8 @@ This endpoint supports the main job listing page and later search/filter demos.
 
 | Parameter | Type | Required | Default | Example | Notes |
 |---|---|---:|---|---|---|
-| `q` | string | No | all jobs | `backend` | Keyword search across title, description, company name, and possibly location |
+| `q` | string | No | all jobs | `backend` | Keyword search across title, description, location, company name, and company slug |
+| `keyword` | string | No | all jobs | `backend` | Optional alias for `q`; `q` wins when both are provided |
 | `location` | string | No | all locations | `Melbourne` | Exact or partial match depending on implementation |
 | `category` | enum | No | all categories | `SOFTWARE_ENGINEERING` | Uses `JobCategory` enum |
 | `workMode` | enum | No | all work modes | `HYBRID` | Uses `WorkMode` enum |
@@ -262,7 +263,16 @@ curl "http://localhost:5000/api/jobs?q=backend&location=Melbourne&workMode=HYBRI
 - `limit` must be a positive integer and should be capped at `100`.
 - `salaryMin` and `salaryMax` must be positive integers when provided.
 - `salaryMax` must be greater than or equal to `salaryMin` when both are provided.
+- `q` and `keyword` are trimmed; empty values behave the same as no keyword search.
 - Enum filters must match the Prisma enum values exactly unless a mapping layer is implemented.
+
+### Search and salary behaviour
+
+- Keyword search uses case-insensitive `contains` matching across job title, job description, location, company name, and company slug.
+- The default sort is `recent`, which orders by `datePosted` descending.
+- `salaryMin` returns jobs whose `salaryMax` is greater than or equal to the requested minimum.
+- `salaryMax` returns jobs whose `salaryMin` is less than or equal to the requested maximum.
+- Jobs with nullable salary values are included only when no salary filter is applied.
 
 ---
 
@@ -274,7 +284,7 @@ GET /api/jobs/:slug
 
 ### Status
 
-Planned for Phase 3. Do not implement during Phase 2.
+Implemented in Phase 3.
 
 ### Purpose
 
@@ -599,8 +609,8 @@ A future production version could add:
 
 ---
 
-## Phase 2 Reminder
+## Historical Phase 2 Reminder
 
 During Phase 2, only Prisma schema, migrations, seed data, and database integration tests should be implemented.
 
-Do not implement `/api/jobs`, `/api/events`, `/api/analytics/summary`, or `/metrics` yet.
+Phase 3 has now implemented `/api/jobs` and `/api/jobs/:slug`. `/api/events`, `/api/analytics/summary`, and `/metrics` remain out of scope until later phases.

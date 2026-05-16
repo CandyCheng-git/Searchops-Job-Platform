@@ -53,7 +53,8 @@ SearchOps prioritizes **high-confidence deployments** over arbitrary coverage nu
 
 | Module | Tests | Purpose |
 |--------|-------|---------|
-| Search service | 12 | Query parsing, filter logic, pagination bounds |
+| Job query validator | 16 | Query parsing, trimming, enum checks, salary validation, pagination bounds |
+| Job service | 11 | Pagination calculation, sorting, salary range interpretation, Prisma where-clause construction |
 | Event tracking | 8 | Event type validation, experiment assignment |
 | Experiment logic | 10 | Variant assignment, bucketing |
 | Validators | 15 | Job title format, salary ranges, dates |
@@ -103,14 +104,14 @@ describe('SearchService', () => {
 
 **Focus:** API contracts, database interactions, end-to-end request/response flow.
 
-**Location:** `backend/tests/integration/**/*.test.ts`
+**Location:** current backend tests run from `backend/src/**/*.test.ts`.
 
 ### Core Flows
 
 | Endpoint | Tests | Scenarios |
 |----------|-------|-----------|
-| GET /api/jobs | 8 | Search, filter, pagination, 400+ latency |
-| GET /api/jobs/:id | 4 | Found, not found, invalid ID |
+| GET /api/jobs | 16 | Search, filters, salary matching, pagination, invalid query handling |
+| GET /api/jobs/:slug | 2 | Found by SEO-friendly slug, unknown slug returns 404 |
 | POST /api/events | 6 | Valid events, experiment assignment, invalid types |
 | GET /health | 3 | Healthy, database down, degraded |
 
@@ -178,6 +179,24 @@ These tests verify:
 These are local development integration tests against the Docker Compose PostgreSQL database. Phase 2 does not introduce a separate test database.
 
 Run them through the Docker-only workflow:
+
+```bash
+docker compose up -d postgres
+docker compose build backend
+docker compose run --rm backend sh -lc "npx prisma migrate deploy"
+docker compose run --rm backend sh -lc "npx prisma db seed"
+docker compose run --rm backend sh -lc "npm test"
+```
+
+### Current Phase 3 Job API Tests
+
+Phase 3 adds:
+
+- `backend/src/validators/jobQuerySchema.test.ts` for `q`/`keyword`, enum, salary, page, limit, and sort validation
+- `backend/src/services/jobService.test.ts` for pagination, sorting, salary range interpretation, and Prisma where-clause construction
+- `backend/src/routes/jobs.test.ts` for seeded `GET /api/jobs` and `GET /api/jobs/:slug` API contracts
+
+These tests use the same Docker PostgreSQL database and seeded Phase 2 data. Run them through the same Docker-only workflow:
 
 ```bash
 docker compose up -d postgres
@@ -277,7 +296,7 @@ beforeEach(async () => {
 
 ### Database Reset
 
-For Phase 2 local development, run migrations and seed data through Docker before the test suite:
+For Phase 2 and Phase 3 local development, run migrations and seed data through Docker before the test suite:
 
 ```bash
 docker compose up -d postgres

@@ -5,9 +5,10 @@ A cloud-native TypeScript project demonstrating how public job pages can be buil
 ## Project Status
 
 - Phase 1 complete: backend bootstrap with Docker local environment and `GET /health`.
-- Phase 2 in progress/complete in this branch: Prisma schema, persisted migrations, seed data, and direct database integration tests.
+- Phase 2 complete: Prisma schema, persisted migrations, seed data, and direct database integration tests.
+- Phase 3 complete: public job listing, search/filtering, sorting, pagination, and job detail APIs under `/api`.
 
-Phase 2 does not include job APIs, frontend work, authentication, analytics endpoints, or A/B testing logic.
+Phase 3 does not include frontend work, event tracking, analytics endpoints, authentication, metrics, observability, or A/B testing logic.
 
 ## Tech Stack
 
@@ -102,8 +103,10 @@ The current test suite includes:
 
 - existing `GET /health` tests
 - Phase 2 Prisma integration tests that use the Docker PostgreSQL database directly
+- Phase 3 unit tests for job query validation, pagination, sorting, and Prisma filter construction
+- Phase 3 Supertest API integration tests for `GET /api/jobs` and `GET /api/jobs/:slug`
 
-Phase 2 does not introduce a separate test database. These are local development integration tests against the Docker Compose PostgreSQL service.
+The project does not introduce a separate test database yet. These are local development integration tests against the Docker Compose PostgreSQL service.
 
 ## API Endpoints
 
@@ -127,16 +130,57 @@ Current response shape:
 }
 ```
 
-Future product APIs should be mounted under `/api`.
+Current product API endpoints are mounted under `/api`:
 
-Planned examples:
+```http
+GET /api/jobs
+GET /api/jobs/:slug
+```
 
-- `GET /api/jobs`
-- `GET /api/jobs/:slug`
+Future planned product APIs:
+
 - `POST /api/events`
 - `GET /api/analytics/summary`
 
-Do not implement those endpoints during Phase 2.
+Do not implement events, analytics, metrics, authentication, frontend work, or A/B testing during Phase 3.
+
+## Phase 3 Job API Examples
+
+Start the API after migrating and seeding the database:
+
+```bash
+docker compose up backend
+```
+
+List jobs:
+
+```bash
+curl "http://localhost:5000/api/jobs"
+```
+
+Search jobs:
+
+```bash
+curl "http://localhost:5000/api/jobs?q=backend"
+```
+
+Filter jobs by location and work mode:
+
+```bash
+curl "http://localhost:5000/api/jobs?location=Melbourne&workMode=HYBRID"
+```
+
+Filter jobs by company and salary range:
+
+```bash
+curl "http://localhost:5000/api/jobs?company=seek&salaryMin=120000"
+```
+
+Get a job by SEO-friendly slug:
+
+```bash
+curl "http://localhost:5000/api/jobs/backend-software-engineer-melbourne-seek"
+```
 
 ## Useful Docker Commands
 

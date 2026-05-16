@@ -1,6 +1,9 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { HttpError } from './errors/httpError.js';
 import healthRouter from './routes/health.js';
+import jobsRouter from './routes/jobs.js';
+import { sendError } from './utils/apiResponse.js';
 
 export function createApp(): Express {
   const app = express();
@@ -10,42 +13,33 @@ export function createApp(): Express {
 
   // Request ID middleware
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const requestId = req.headers['x-request-id'] || uuidv4();
-    (req as any).requestId = requestId;
+    const requestIdHeader = req.headers['x-request-id'];
+    const requestId = Array.isArray(requestIdHeader)
+      ? requestIdHeader[0] ?? uuidv4()
+      : requestIdHeader ?? uuidv4();
+    req.requestId = requestId;
     res.setHeader('x-request-id', requestId);
     next();
   });
 
   // Routes
   app.use('/health', healthRouter);
+  app.use('/api/jobs', jobsRouter);
 
   // 404 handler
   app.use((req: Request, res: Response) => {
-    res.status(404).json({
-      error: {
-        code: 'NOT_FOUND',
-        message: 'Route not found',
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: (req as any).requestId,
-      },
-    });
+    sendError(req, res, 404, 'NOT_FOUND', 'Route not found');
   });
 
   // Error handler
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+    if (err instanceof HttpError) {
+      sendError(req, res, err.statusCode, err.code, err.message, err.details);
+      return;
+    }
+
     console.error('Unhandled error:', err);
-    res.status(500).json({
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Internal server error',
-      },
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: (_req as any).requestId,
-      },
-    });
+    sendError(req, res, 500, 'INTERNAL_ERROR', 'Internal server error');
   });
 
   return app;
