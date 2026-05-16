@@ -5,9 +5,42 @@ import { prisma } from '../db/prisma.js';
 
 const app = createApp();
 
+interface CompanyResponse {
+  name: string;
+  slug: string;
+  websiteUrl: string | null;
+}
+
+interface JobListItemResponse {
+  slug: string;
+  location: string;
+  category: string;
+  workMode: string;
+  employmentType: string;
+  salaryMax: number | null;
+  company: CompanyResponse;
+}
+
+interface PaginationResponse {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+interface JobsListResponseBody {
+  data: {
+    jobs: JobListItemResponse[];
+    pagination: PaginationResponse;
+  };
+}
+
 describe('GET /api/jobs', () => {
   it('should return seeded jobs with pagination metadata', async () => {
     const res = await request(app).get('/api/jobs').expect(200);
+    const body = res.body as JobsListResponseBody;
 
     expect(res.body).toEqual({
       data: {
@@ -26,26 +59,28 @@ describe('GET /api/jobs', () => {
         requestId: expect.any(String),
       }),
     });
-    expect(res.body.data.jobs.length).toBeLessThanOrEqual(20);
-    expect(res.body.data.pagination.total).toBeGreaterThanOrEqual(22);
+    expect(body.data.jobs.length).toBeLessThanOrEqual(20);
+    expect(body.data.pagination.total).toBeGreaterThanOrEqual(22);
   });
 
   it('should search relevant seeded backend jobs', async () => {
     const res = await request(app).get('/api/jobs?q=backend').expect(200);
-    const slugs = res.body.data.jobs.map((job: any) => job.slug);
+    const body = res.body as JobsListResponseBody;
+    const slugs = body.data.jobs.map((job) => job.slug);
 
     expect(slugs).toContain('backend-software-engineer-melbourne-seek');
-    expect(res.body.data.pagination.total).toBeGreaterThan(0);
+    expect(body.data.pagination.total).toBeGreaterThan(0);
   });
 
   it('should filter by location', async () => {
     const res = await request(app)
       .get('/api/jobs?location=Melbourne')
       .expect(200);
+    const body = res.body as JobsListResponseBody;
 
-    expect(res.body.data.jobs.length).toBeGreaterThan(0);
+    expect(body.data.jobs.length).toBeGreaterThan(0);
     expect(
-      res.body.data.jobs.every((job: any) =>
+      body.data.jobs.every((job) =>
         job.location.toLowerCase().includes('melbourne'),
       ),
     ).toBe(true);
@@ -53,9 +88,10 @@ describe('GET /api/jobs', () => {
 
   it('should filter by workMode', async () => {
     const res = await request(app).get('/api/jobs?workMode=HYBRID').expect(200);
+    const body = res.body as JobsListResponseBody;
 
-    expect(res.body.data.jobs.length).toBeGreaterThan(0);
-    expect(res.body.data.jobs.every((job: any) => job.workMode === 'HYBRID')).toBe(
+    expect(body.data.jobs.length).toBeGreaterThan(0);
+    expect(body.data.jobs.every((job) => job.workMode === 'HYBRID')).toBe(
       true,
     );
   });
@@ -64,12 +100,11 @@ describe('GET /api/jobs', () => {
     const res = await request(app)
       .get('/api/jobs?category=SOFTWARE_ENGINEERING')
       .expect(200);
+    const body = res.body as JobsListResponseBody;
 
-    expect(res.body.data.jobs.length).toBeGreaterThan(0);
+    expect(body.data.jobs.length).toBeGreaterThan(0);
     expect(
-      res.body.data.jobs.every(
-        (job: any) => job.category === 'SOFTWARE_ENGINEERING',
-      ),
+      body.data.jobs.every((job) => job.category === 'SOFTWARE_ENGINEERING'),
     ).toBe(true);
   });
 
@@ -77,22 +112,22 @@ describe('GET /api/jobs', () => {
     const res = await request(app)
       .get('/api/jobs?employmentType=FULL_TIME')
       .expect(200);
+    const body = res.body as JobsListResponseBody;
 
-    expect(res.body.data.jobs.length).toBeGreaterThan(0);
+    expect(body.data.jobs.length).toBeGreaterThan(0);
     expect(
-      res.body.data.jobs.every(
-        (job: any) => job.employmentType === 'FULL_TIME',
-      ),
+      body.data.jobs.every((job) => job.employmentType === 'FULL_TIME'),
     ).toBe(true);
   });
 
   it('should filter by company name or slug', async () => {
     const res = await request(app).get('/api/jobs?company=seek').expect(200);
+    const body = res.body as JobsListResponseBody;
 
-    expect(res.body.data.jobs.length).toBeGreaterThan(0);
+    expect(body.data.jobs.length).toBeGreaterThan(0);
     expect(
-      res.body.data.jobs.every(
-        (job: any) =>
+      body.data.jobs.every(
+        (job) =>
           job.company.slug === 'seek' ||
           job.company.name.toLowerCase().includes('seek'),
       ),
@@ -101,11 +136,12 @@ describe('GET /api/jobs', () => {
 
   it('should filter salary ranges by lower bound', async () => {
     const res = await request(app).get('/api/jobs?salaryMin=120000').expect(200);
+    const body = res.body as JobsListResponseBody;
 
-    expect(res.body.data.jobs.length).toBeGreaterThan(0);
+    expect(body.data.jobs.length).toBeGreaterThan(0);
     expect(
-      res.body.data.jobs.every(
-        (job: any) => job.salaryMax !== null && job.salaryMax >= 120000,
+      body.data.jobs.every(
+        (job) => job.salaryMax !== null && job.salaryMax >= 120000,
       ),
     ).toBe(true);
   });
@@ -114,10 +150,11 @@ describe('GET /api/jobs', () => {
     const res = await request(app)
       .get('/api/jobs?page=2&limit=5')
       .expect(200);
+    const body = res.body as JobsListResponseBody;
 
-    const pagination = res.body.data.pagination;
+    const pagination = body.data.pagination;
 
-    expect(res.body.data.jobs).toHaveLength(5);
+    expect(body.data.jobs).toHaveLength(5);
     expect(pagination.page).toBe(2);
     expect(pagination.limit).toBe(5);
     expect(pagination.total).toBeGreaterThanOrEqual(22);

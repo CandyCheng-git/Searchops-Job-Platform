@@ -2,13 +2,7 @@ import { Request, Response } from 'express';
 import type { ApiErrorCode, ApiErrorDetail } from '../errors/httpError.js';
 
 function getRequestId(req: Request): string {
-  const requestId = (req as any).requestId;
-
-  if (Array.isArray(requestId)) {
-    return requestId[0] ?? '';
-  }
-
-  return requestId ?? '';
+  return req.requestId ?? '';
 }
 
 export function sendSuccess<T>(

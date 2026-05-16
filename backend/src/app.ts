@@ -17,7 +17,7 @@ export function createApp(): Express {
     const requestId = Array.isArray(requestIdHeader)
       ? requestIdHeader[0] ?? uuidv4()
       : requestIdHeader ?? uuidv4();
-    (req as any).requestId = requestId;
+    req.requestId = requestId;
     res.setHeader('x-request-id', requestId);
     next();
   });
@@ -32,7 +32,7 @@ export function createApp(): Express {
   });
 
   // Error handler
-  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof HttpError) {
       sendError(req, res, err.statusCode, err.code, err.message, err.details);
       return;
