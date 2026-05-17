@@ -144,3 +144,4 @@ vite.config.ts.timestamp-*
 
 # documents
 docs/0_overall-plan.md
+docs/test_results/*

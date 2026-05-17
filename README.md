@@ -7,14 +7,16 @@ A cloud-native TypeScript project demonstrating how public job pages can be buil
 - Phase 1 complete: backend bootstrap with Docker local environment and `GET /health`.
 - Phase 2 complete: Prisma schema, persisted migrations, seed data, and direct database integration tests.
 - Phase 3 complete: public job listing, search/filtering, sorting, pagination, and job detail APIs under `/api`.
+- Phase 4 complete: Next.js App Router frontend with crawlable public job listing/detail pages, SEO metadata, JobPosting JSON-LD, `sitemap.xml`, and `robots.txt`.
 
-Phase 3 does not include frontend work, event tracking, analytics endpoints, authentication, metrics, observability, or A/B testing logic.
+Phase 4 does not include event tracking, analytics endpoints, authentication, dashboards, metrics, observability, or A/B testing logic.
 
 ## Tech Stack
 
 - Backend: Node.js, Express, TypeScript
+- Frontend: Next.js App Router, React, TypeScript
 - Database: PostgreSQL, Prisma
-- Testing: Vitest, Supertest
+- Testing: Vitest, React Testing Library, Supertest
 - Local workflow: Docker Compose only
 
 ## Local Development
@@ -27,10 +29,10 @@ Start PostgreSQL:
 docker compose up -d postgres
 ```
 
-Build the backend image:
+Build the backend and frontend images:
 
 ```bash
-docker compose build backend
+docker compose build backend frontend
 ```
 
 Format and generate Prisma inside Docker:
@@ -52,20 +54,61 @@ Seed the development database:
 docker compose run --rm backend sh -lc "npx prisma db seed"
 ```
 
-Run tests and build:
+Run backend tests and build:
 
 ```bash
 docker compose run --rm backend sh -lc "npm test"
 docker compose run --rm backend sh -lc "npm run build"
+docker compose run --rm backend sh -lc "npm run lint"
 ```
 
-Start the API:
+Run frontend tests, build, and lint:
 
 ```bash
-docker compose up backend
+docker compose run --rm frontend sh -lc "npm test"
+docker compose run --rm frontend sh -lc "npm run build"
+docker compose run --rm frontend sh -lc "npm run lint"
+```
+
+Start the full stack:
+
+```bash
+docker compose up --build
 ```
 
 The API runs on `http://localhost:5000`.
+The frontend runs on `http://localhost:3000`.
+
+## Frontend Configuration
+
+The frontend reads these environment variables:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `BACKEND_API_URL` | `http://localhost:5000` | Backend origin used for server-side API fetches |
+| `FRONTEND_SITE_URL` | `http://localhost:3000` | Absolute site origin used for canonical URLs, Open Graph URLs, sitemap URLs, and robots.txt |
+
+Inside Docker Compose, the frontend uses `BACKEND_API_URL=http://backend:5000` and exposes port `3000`.
+
+## Frontend Pages
+
+Current public frontend routes:
+
+```txt
+GET /jobs
+GET /jobs/[slug]
+GET /sitemap.xml
+GET /robots.txt
+```
+
+The frontend uses the existing backend API only:
+
+```txt
+GET /api/jobs
+GET /api/jobs/:slug
+```
+
+There is no `/api/jobs/search` endpoint.
 
 ## Migration Persistence
 
@@ -105,6 +148,7 @@ The current test suite includes:
 - Phase 2 Prisma integration tests that use the Docker PostgreSQL database directly
 - Phase 3 unit tests for job query validation, pagination, sorting, and Prisma filter construction
 - Phase 3 Supertest API integration tests for `GET /api/jobs` and `GET /api/jobs/:slug`
+- Phase 4 frontend tests for listing rendering, detail rendering, JobPosting JSON-LD, canonical metadata, sitemap output, and robots.txt output
 
 The project does not introduce a separate test database yet. These are local development integration tests against the Docker Compose PostgreSQL service.
 
@@ -142,7 +186,7 @@ Future planned product APIs:
 - `POST /api/events`
 - `GET /api/analytics/summary`
 
-Do not implement events, analytics, metrics, authentication, frontend work, or A/B testing during Phase 3.
+Events, analytics, metrics, authentication, dashboards, and A/B testing remain out of scope for Phase 4.
 
 ## Phase 3 Job API Examples
 
@@ -182,12 +226,46 @@ Get a job by SEO-friendly slug:
 curl "http://localhost:5000/api/jobs/backend-software-engineer-melbourne-seek"
 ```
 
+## Phase 4 Frontend Examples
+
+After migrating and seeding the database, start the full stack:
+
+```bash
+docker compose up --build
+```
+
+Smoke-test URLs:
+
+```bash
+curl http://localhost:5000/health
+curl "http://localhost:5000/api/jobs?limit=3"
+curl http://localhost:3000/jobs
+curl http://localhost:3000/jobs/backend-software-engineer-melbourne-seek
+curl http://localhost:3000/sitemap.xml
+curl http://localhost:3000/robots.txt
+```
+
+SEO checks for a rendered job detail page:
+
+```bash
+html=$(curl -s http://localhost:3000/jobs/backend-software-engineer-melbourne-seek)
+echo "$html" | grep -i "Backend Software Engineer"
+echo "$html" | grep -i "application/ld+json"
+echo "$html" | grep -i "canonical"
+echo "$html" | grep -i "og:title"
+echo "$html" | grep -i "JobPosting"
+echo "$html" | grep -i "AUD"
+```
+
 ## Useful Docker Commands
 
 ```bash
 docker compose up -d postgres
 docker compose up backend
+docker compose up frontend
+docker compose up --build
 docker compose logs -f backend
+docker compose logs -f frontend
 docker compose logs -f postgres
 docker compose down
 docker compose down -v
