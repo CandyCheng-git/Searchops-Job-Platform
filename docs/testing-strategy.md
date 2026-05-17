@@ -87,16 +87,18 @@ describe('SearchService', () => {
 
 ### Frontend
 
-**Location:** `frontend/src/**/*.test.tsx`
+**Location:** `frontend/tests/**/*.test.tsx`
 
 **Coverage:**
 
 | Component | Tests | Purpose |
 |-----------|-------|---------|
-| Search form | 6 | Input validation, query submission |
-| Job card | 4 | Rendering, event tracking calls |
-| Pagination | 5 | Page nav, boundary conditions |
-| Event tracker | 8 | Event type, experiment variant, metadata |
+| Job listing page | 1 | Server component rendering with backend job data |
+| Job detail page | 1 | Server component rendering with backend job detail data |
+| JobPosting JSON-LD | 1 | Structured data script and AUD salary fields |
+| Job detail metadata | 1 | Canonical URL and Open Graph metadata |
+| Sitemap route | 1 | `/jobs` and job detail URLs from `GET /api/jobs?limit=100` |
+| Robots route | 1 | Sitemap reference and public crawl allowance |
 
 ---
 
@@ -204,6 +206,29 @@ docker compose build backend
 docker compose run --rm backend sh -lc "npx prisma migrate deploy"
 docker compose run --rm backend sh -lc "npx prisma db seed"
 docker compose run --rm backend sh -lc "npm test"
+```
+
+### Current Phase 4 Frontend Tests
+
+Phase 4 adds focused frontend tests in `frontend/tests/job-pages.test.tsx`.
+
+These tests verify:
+
+- `/jobs` listing page rendering with data from `GET /api/jobs`
+- `/jobs/[slug]` detail page rendering with data from `GET /api/jobs/:slug`
+- JobPosting JSON-LD presence on job detail pages
+- AUD salary data in JSON-LD when salary data exists
+- canonical URL and Open Graph metadata from `generateMetadata`
+- `sitemap.xml` includes `/jobs` and at least one job detail URL from `GET /api/jobs?limit=100`
+- `robots.txt` references `sitemap.xml`
+
+Run them through Docker:
+
+```bash
+docker compose build frontend
+docker compose run --rm frontend sh -lc "npm test"
+docker compose run --rm frontend sh -lc "npm run build"
+docker compose run --rm frontend sh -lc "npm run lint"
 ```
 
 ---
