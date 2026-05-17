@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 };
 
 export default async function JobsPage() {
-  const { jobs, pagination } = await getJobs();
+  const { jobs, pagination } = await getJobs({ limit: 100 });
 
   return (
     <main className="page-shell">
